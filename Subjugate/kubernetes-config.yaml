@@ -1,0 +1,56 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: subjugate-deployment
+spec:
+  replicas: 3
+  selector:
+    matchLabels:
+      app: subjugate
+  template:
+    metadata:
+      labels:
+        app: subjugate
+    spec:
+      containers:
+      - name: subjugate
+        image: subjugate:1.0
+        ports:
+        - containerPort: 8080
+        env:
+        - name: MONGO_DB_URL
+          valueFrom:
+            secretKeyRef:
+              name: mongodb-secret
+              key: mongodb-url
+        - name: REDIS_URL
+          valueFrom:
+            secretKeyRef:
+              name: redis-secret
+              key: redis-url
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: subjugate-service
+spec:
+  selector:
+    app: subjugate
+  ports:
+    - protocol: TCP
+      port: 80
+      targetPort: 8080
+  type: LoadBalancer
+---
+apiVersion: autoscaling/v1
+kind: HorizontalPodAutoscaler
+metadata:
+  name: subjugate-hpa
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: subjugate-deployment
+  minReplicas: 3
+  maxReplicas: 10
+  targetCPUUtilizationPercentage: 80
